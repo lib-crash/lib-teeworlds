@@ -8,13 +8,29 @@
 shopt -s nullglob # used for file list globbing
 shopt -s extglob # used for trailing slashes globbing
 
-if [ "$#" -ne "6" ]
+is_debug=0
+is_test=0
+
+if [ "$#" -lt "6" ]
 then
-    echo "usage: $0 <sql-prefix> <sql-user> <sql-pass> <sql-database> <records-path> <server-type>"
+    echo "usage: $0 <sql-prefix> <sql-user> <sql-pass> <sql-database> <records-path> <server-type> [--debug|--test]"
     exit 1
 fi
+if [ "$#" -gt "6" ]
+then
+    flag=$7
+    if [ "$flag" == "--debug" ]
+    then
+        is_debug=1
+    elif [ "$flag" == "--test" ]
+    then
+        is_test=1
+    else
+        echo "Invalid flag '$flag' choose between --debug or --test"
+        exit 1
+    fi
+fi
 
-is_debug=0
 timestamp=0 # sql will create a 0000-00-00 00:00:00 stamp
 gameid=0
 sql_prefix=$1 # record
@@ -82,6 +98,11 @@ function add_points() {
         ''|*[!0-9]*) echo "Points '$points' is not a number map='$mapname'"; exit 1; ;;
         *) test ;;
     esac
+    if [ "$is_test" == "1" ]
+    then
+        echo "Would add +$points points for '$name' (TEST SKIPPING)"
+        return;
+    fi
     echo "Add +$points points for '$name'"
     sql_set_points="INSERT INTO ${sql_prefix}_points(Name, Points) VALUES (?, ?) ON duplicate key UPDATE Name=VALUES(Name), Points=Points+VALUES(Points);"
     sql_set_points=$(hex_query "$sql_set_points" "$name" "$points")
@@ -109,6 +130,11 @@ function insert_record() {
         cps+=("$c")
     done
     add_points "$name" "$mapname"
+    if [ "$is_test" == "1" ]
+    then
+        echo "Would insert rank for '$name' (TEST SKIPPING)"
+        return;
+    fi
     read -rd '' sql_insert << EOF
 INSERT IGNORE INTO ${sql_prefix}_race(
     Map, Name, Timestamp, Time, Server,
