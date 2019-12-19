@@ -7,22 +7,24 @@
 # into the database
 shopt -s nullglob # used for file list globbing
 shopt -s extglob # used for trailing slashes globbing
-is_debug=0
-timestamp=0 # sql will create a 0000-00-00 00:00:00 stamp
-servertype=Novice # TODO:
-gameid=0 # TODO:
-sql_prefix=record
-sql_user=teeworlds # TODO: userinput
-sql_database=teeworlds # TODO: userinput
-sql_password=PW2 # TODO: userinput
 
-mysql="mysql --skip-column-names -u $sql_user -p$sql_password $sql_database"
-
-if [ "$#" -ne "1" ]
+if [ "$#" -ne "6" ]
 then
-    echo "usage: $0 <records path>"
+    echo "usage: $0 <sql-prefix> <sql-user> <sql-pass> <sql-database> <records-path> <server-type>"
     exit 1
 fi
+
+is_debug=0
+timestamp=0 # sql will create a 0000-00-00 00:00:00 stamp
+gameid=0
+sql_prefix=$1 # record
+sql_user=$2 # teeworlds
+sql_password=$3 # PW2
+sql_database=$4 # teeworlds
+records_path=$5 # records/
+servertype=$6 # Brutal
+records_path="${records_path%%+(/)}" # strip trailing slash
+mysql="mysql --skip-column-names -u $sql_user -p$sql_password $sql_database"
 
 function dbg() {
     if [ "$is_debug" -ne "1" ]
@@ -32,8 +34,6 @@ function dbg() {
     echo "$1"
 }
 
-records_path=$1
-records_path="${records_path%%+(/)}" # strip trailing slash
 if [ ! -d "$records_path" ]
 then
     echo "Error: records path does not exist '$records_path'"
