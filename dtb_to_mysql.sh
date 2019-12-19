@@ -8,7 +8,7 @@
 shopt -s nullglob # used for file list globbing
 shopt -s extglob # used for trailing slashes globbing
 is_debug=0
-timestamp=TODO # TODO: choose wisely here
+timestamp=0 # sql will create a 0000-00-00 00:00:00 stamp
 servertype=Novice # TODO:
 gameid=0 # TODO:
 sql_prefix=record
@@ -40,14 +40,31 @@ then
     exit 1
 fi
 
+# inspired by this stackoverflow answer
+# https://stackoverflow.com/a/25059107
+function hex_query() {
+    local sql=$1
+    local i
+    shift 1 || return 1
+    declare -a args=("$@")
+    sql=${sql//[%]/%%}
+    sql=${sql//[?]/UNHEX(\'%s\')}
+    for ((i=0; i<${#args[@]}; i++))
+    do
+        args[$i]=$(echo -n "${args[$i]}" | hexdump -v -e '/1 "%02X"')
+    done
+    printf "$sql\n" "${args[@]}"
+}
+
 function add_points() {
-    local name=$1 # TODO: sql injection
-    local mapname=$2 # TODO: sql injection
+    local name=$1
+    local mapname=$2
     local points=0
     local sql_finished=""
     local sql_get_points=""
     local sql_set_points=""
-    sql_finished="SELECT * FROM ${sql_prefix}_race WHERE Map='$mapname' AND Name='$name' ORDER BY time ASC LIMIT 1;"
+    sql_finished="SELECT * FROM ${sql_prefix}_race WHERE Map=? AND Name=? ORDER BY time ASC LIMIT 1;"
+    sql_finished=$(hex_query "$sql_finished" "$mapname" "$name")
     dbg "sql:"
     dbg "$sql_finished"
     is_finished=$(echo "$sql_finished" | $mysql)
@@ -58,14 +75,16 @@ function add_points() {
         dbg "$is_finished"
         return
     fi
-    sql_get_points="SELECT Points FROM ${sql_prefix}_maps WHERE Map='$mapname'"
+    sql_get_points="SELECT Points FROM ${sql_prefix}_maps WHERE Map=?;"
+    sql_get_points=$(hex_query "$sql_get_points" "$mapname")
     points=$(echo "$sql_get_points" | $mysql)
     case $points in
-        ''|*[!0-9]*) echo "Points '$points' is not a number."; exit 1; ;;
+        ''|*[!0-9]*) echo "Points '$points' is not a number map='$mapname'"; exit 1; ;;
         *) test ;;
     esac
     echo "Add +$points points for '$name'"
-    sql_set_points="INSERT INTO ${sql_prefix}_points(Name, Points) VALUES ('$name', '$points') ON duplicate key UPDATE Name=VALUES(Name), Points=Points+VALUES(Points);"
+    sql_set_points="INSERT INTO ${sql_prefix}_points(Name, Points) VALUES (?, ?) ON duplicate key UPDATE Name=VALUES(Name), Points=Points+VALUES(Points);"
+    sql_set_points=$(hex_query "$sql_set_points" "$name" "$points")
     is_points=$(echo "$sql_set_points" | $mysql)
     if [ "$is_points" != "" ]
     then
@@ -77,10 +96,10 @@ function add_points() {
 }
 
 function insert_record() {
-    local name=$1 # TODO: sql injection
+    local name=$1
     local time=$2
     local cp=$3
-    local mapname=$4 # TODO: sql injection
+    local mapname=$4
     local i=0
     echo "Inserting record name='$name' time='$time' cp='$cp'"
     cps=()
@@ -100,15 +119,23 @@ INSERT IGNORE INTO ${sql_prefix}_race(
     cp21, cp22, cp23, cp24, cp25,
     GameID, DDNet7
 ) VALUES (
-    '$mapname', '$name', '$timestamp', '$time', '$servertype',
-    '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}',
-    '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}',
-    '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}',
-    '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}',
-    '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}', '${cps[$((i++))]}',
-    '$gameid', true
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, true
 );
 EOF
+    sql_insert=$(hex_query "$sql_insert" \
+    "$mapname" "$name" "$timestamp" "$time" "$servertype" \
+    "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" \
+    "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" \
+    "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" \
+    "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" \
+    "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" "${cps[$((i++))]}" \
+    "$gameid")
     dbg "sql:"
     dbg "$sql_insert"
     is_insert=$(echo "$sql_insert" | $mysql)
@@ -135,7 +162,8 @@ function parse_dtb_file() {
     fi
     mapname=$(basename "$dtb" .dtb)
     echo "Mapname: $mapname"
-    sql_map="SELECT Map FROM ${sql_prefix}_maps WHERE Map='$mapname';"
+    sql_map="SELECT Map FROM ${sql_prefix}_maps WHERE Map=?;"
+    sql_map=$(hex_query "$sql_map" "$mapname")
     is_map=$(echo "$sql_map" | $mysql)
     if [[ ! "$is_map" =~ "$mapname" ]]
     then
