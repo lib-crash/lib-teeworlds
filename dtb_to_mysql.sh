@@ -186,7 +186,7 @@ function parse_dtb_file() {
         echo "Error: file does not exist '$dtb'"
         exit 1
     fi
-    mapname=$(basename "$dtb" .dtb)
+    mapname=$(basename "$dtb" _record.dtb)
     echo "Mapname: $mapname"
     sql_map="SELECT Map FROM ${sql_prefix}_maps WHERE Map=?;"
     sql_map=$(hex_query "$sql_map" "$mapname")
