@@ -1,2 +1,2 @@
 #!/bin/sh
-export LIB-TEEWORLDS='v0.0.1-dev'
+export LIB_TEEWORLDS_VERSION='v0.0.1-dev'
