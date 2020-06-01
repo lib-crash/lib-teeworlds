@@ -34,7 +34,7 @@ then
 fi
 
 function log() {
-    echo -e "\033[1m[+] $1\033[0m"
+    echo -e "\\033[1m[+] $1\\033[0m"
 }
 
 log "reading demo file..."
