@@ -50,14 +50,17 @@ H_TYPE_END=$((
 ))
 H_LENGTH_LEN=4
 H_LENGTH_END=$((H_TYPE_END + H_LENGTH_LEN))
-H_TIME_LEN=25 # TODO: why is this not 20?
-H_TIME_END=$((H_TYPE_END + H_TIME_LEN))
+H_TIME_LEN=20
+H_TIME_END=$((H_LENGTH_END + H_TIME_LEN))
 H_NUM_MARKERS_LEN=1
 H_NUM_MARKERS_END=$((
     H_TIME_END +
-    2 +
-    H_NUM_MARKERS_LEN
+    H_NUM_MARKERS_LEN +
+    + 3
 ))
+# markers is a 4 byte chunk
+# but only the third byte holds data
+# the other 3 are always zero
 
 if [ "$#" -lt "1" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
 then
