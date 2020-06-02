@@ -67,31 +67,12 @@ then
     exit 1
 fi
 demofile="$1"
-shift
+filter="$2"
 if [ ! -f "$demofile" ]
 then
     echo "Error: file '$demofile' does not exist"
     exit 1
 fi
-for arg in "$@"
-do
-    if [ "$arg" == "--map" ]
-    then
-        show_map=1
-    elif [ "$arg" == "--type" ]
-    then
-        show_type=1
-    elif [ "$arg" == "--time" ]
-    then
-        show_time=1
-    elif [ "$arg" == "--markers" ]
-    then
-        show_markers=1
-    else
-        echo "Error: invalid argument '$arg'"
-        exit 1
-    fi
-done
 {
     header_magic=$(head -c 6 "$demofile")
     header_netversion=$(head -c $H_NETVERISON_END "$demofile" | tail -c $H_NETVERISON_LEN)
@@ -107,23 +88,26 @@ then
     exit 1
 fi
 
-if [ "$show_map" == "1" ]
+if [ "$filter" == "--map" ]
 then
     echo "$header_mapname"
-elif [ "$show_type" == "1" ]
+elif [ "$filter" == "--type" ]
 then
     echo "$header_type"
-elif [ "$show_time" == "1" ]
+elif [ "$filter" == "--time" ]
 then
     echo "$header_time"
-elif [ "$show_markers" == "1" ]
+elif [ "$filter" == "--markers" ]
 then
     echo "$header_num_markers"
-else
+elif [ "$filter" == "" ]
+then
     echo "netversion: $header_netversion"
     echo "map: $header_mapname"
     echo "type: $header_type"
     echo "timestamp: $header_time"
     echo "markers: $header_num_markers"
+else
+    echo "Error: invalid filter '$filter'"
 fi
 
