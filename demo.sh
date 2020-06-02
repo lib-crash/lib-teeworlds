@@ -61,13 +61,19 @@ H_NUM_MARKERS_END=$((
 
 if [ "$#" -lt "1" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
 then
-    echo "Usage: $(basename "$0") <demofile> [FILTER]"
+    echo "Usage: $(basename "$0") [FILTER] <demofile> [FILTER]"
     echo "Description: outputs demo 0.7 header"
     echo "Filter: --map --type --time --markers"
     exit 1
 fi
-demofile="$1"
-filter="$2"
+if [[ "$1" =~ ^-- ]]
+then
+    demofile="$2"
+    filter="$1"
+else
+    demofile="$1"
+    filter="$2"
+fi
 if [ ! -f "$demofile" ]
 then
     echo "Error: file '$demofile' does not exist"
