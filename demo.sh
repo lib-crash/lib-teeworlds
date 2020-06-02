@@ -52,9 +52,10 @@ H_LENGTH_LEN=4
 H_LENGTH_END=$((H_TYPE_END + H_LENGTH_LEN))
 H_TIME_LEN=25 # TODO: why is this not 20?
 H_TIME_END=$((H_TYPE_END + H_TIME_LEN))
-H_NUM_MARKERS_LEN=4
+H_NUM_MARKERS_LEN=1
 H_NUM_MARKERS_END=$((
     H_TIME_END +
+    2 +
     H_NUM_MARKERS_LEN
 ))
 
@@ -75,7 +76,7 @@ header_netversion=$(head -c $H_NETVERISON_END "$demofile" | tail -c $H_NETVERISO
 header_mapname=$(head -c $H_MAPNAME_END "$demofile" | tail -c $H_MAPNAME_LEN)
 header_type=$(head -c $H_TYPE_END "$demofile" | tail -c $H_TYPE_LEN)
 header_time=$(head -c $H_TIME_END "$demofile" | tail -c $H_TIME_LEN)
-header_num_markers=$(head -c $H_NUM_MARKERS_END "$demofile" | tail -c $H_NUM_MARKERS_LEN | xxd)
+header_num_markers=$(head -c $H_NUM_MARKERS_END "$demofile" | tail -c $H_NUM_MARKERS_LEN | xxd -p)
 if [ "$header_magic" != "$H_MAGIC" ]
 then
     echo "Error: invalid demo file '$header_magic' != '$H_MAGIC'"
@@ -86,5 +87,5 @@ echo "netversion: $header_netversion"
 echo "map: $header_mapname"
 echo "type: $header_type"
 echo "timestamp: $header_time"
-echo "markers: $header_num_markers"
+echo "markers: $((16#$header_num_markers))"
 
