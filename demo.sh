@@ -92,13 +92,15 @@ do
         exit 1
     fi
 done
-header_magic=$(head -c 6 "$demofile")
-header_netversion=$(head -c $H_NETVERISON_END "$demofile" | tail -c $H_NETVERISON_LEN)
-header_mapname=$(head -c $H_MAPNAME_END "$demofile" | tail -c $H_MAPNAME_LEN)
-header_type=$(head -c $H_TYPE_END "$demofile" | tail -c $H_TYPE_LEN)
-header_time=$(head -c $H_TIME_END "$demofile" | tail -c $H_TIME_LEN)
-header_num_markers=$(head -c $H_NUM_MARKERS_END "$demofile" | tail -c $H_NUM_MARKERS_LEN | xxd -p)
-header_num_markers=$((16#$header_num_markers))
+{
+    header_magic=$(head -c 6 "$demofile")
+    header_netversion=$(head -c $H_NETVERISON_END "$demofile" | tail -c $H_NETVERISON_LEN)
+    header_mapname=$(head -c $H_MAPNAME_END "$demofile" | tail -c $H_MAPNAME_LEN)
+    header_type=$(head -c $H_TYPE_END "$demofile" | tail -c $H_TYPE_LEN)
+    header_time=$(head -c $H_TIME_END "$demofile" | tail -c $H_TIME_LEN)
+    header_num_markers=$(head -c $H_NUM_MARKERS_END "$demofile" | tail -c $H_NUM_MARKERS_LEN | xxd -p)
+    header_num_markers=$((16#$header_num_markers))
+} > /dev/null 2>&1
 if [ "$header_magic" != "$H_MAGIC" ]
 then
     echo "Error: invalid demo file '$header_magic' != '$H_MAGIC'"
