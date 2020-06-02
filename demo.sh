@@ -59,33 +59,69 @@ H_NUM_MARKERS_END=$((
     H_NUM_MARKERS_LEN
 ))
 
-if [ "$#" -lt "1" ]
+if [ "$#" -lt "1" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
 then
-    echo "Usage: $(basename "$0") <demofile>"
-    echo "outputs demo 0.7 header"
+    echo "Usage: $(basename "$0") <demofile> [FILTER]"
+    echo "Description: outputs demo 0.7 header"
+    echo "Filter: --map --type --time --markers"
     exit 1
 fi
 demofile="$1"
+shift
 if [ ! -f "$demofile" ]
 then
     echo "Error: file '$demofile' does not exist"
     exit 1
 fi
+for arg in "$@"
+do
+    if [ "$arg" == "--map" ]
+    then
+        show_map=1
+    elif [ "$arg" == "--type" ]
+    then
+        show_type=1
+    elif [ "$arg" == "--time" ]
+    then
+        show_time=1
+    elif [ "$arg" == "--markers" ]
+    then
+        show_markers=1
+    else
+        echo "Error: invalid argument '$arg'"
+        exit 1
+    fi
+done
 header_magic=$(head -c 6 "$demofile")
 header_netversion=$(head -c $H_NETVERISON_END "$demofile" | tail -c $H_NETVERISON_LEN)
 header_mapname=$(head -c $H_MAPNAME_END "$demofile" | tail -c $H_MAPNAME_LEN)
 header_type=$(head -c $H_TYPE_END "$demofile" | tail -c $H_TYPE_LEN)
 header_time=$(head -c $H_TIME_END "$demofile" | tail -c $H_TIME_LEN)
 header_num_markers=$(head -c $H_NUM_MARKERS_END "$demofile" | tail -c $H_NUM_MARKERS_LEN | xxd -p)
+header_num_markers=$((16#$header_num_markers))
 if [ "$header_magic" != "$H_MAGIC" ]
 then
     echo "Error: invalid demo file '$header_magic' != '$H_MAGIC'"
     exit 1
 fi
 
-echo "netversion: $header_netversion"
-echo "map: $header_mapname"
-echo "type: $header_type"
-echo "timestamp: $header_time"
-echo "markers: $((16#$header_num_markers))"
+if [ "$show_map" == "1" ]
+then
+    echo "$header_mapname"
+elif [ "$show_type" == "1" ]
+then
+    echo "$header_type"
+elif [ "$show_time" == "1" ]
+then
+    echo "$header_time"
+elif [ "$show_markers" == "1" ]
+then
+    echo "$header_num_markers"
+else
+    echo "netversion: $header_netversion"
+    echo "map: $header_mapname"
+    echo "type: $header_type"
+    echo "timestamp: $header_time"
+    echo "markers: $header_num_markers"
+fi
 
