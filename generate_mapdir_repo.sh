@@ -28,8 +28,8 @@ function update_map() {
     local mapname_ext=$1
     local mapname
     mapname="$(basename "$mapname_ext" .map)"
-    test -f "$mapname_ext" || { echo "map not found '$mapname_ext'"; return; }
     test -d "$dir_path/$mapname" && rm -rf "${dir_path:?}/$mapname"
+    test -f "$mapname_ext" || { echo "map not found '$mapname_ext'"; return; }
     if ! edit_map "$mapname_ext" "$dir_path/$mapname" --mapdir
     then
         fail "edit_map failed"
