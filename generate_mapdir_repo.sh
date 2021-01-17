@@ -34,18 +34,32 @@ function update_map() {
     then
         fail "edit_map failed"
     fi
-    (
-        cd "$dir_path" || exit 1
-        git add .
-        git commit -m "update" || true
-    ) || fail "commit failed"
 }
+
+inital_commit=1
 
 for commit in $(printf "%s\n" "$(git --no-pager log --pretty='format:%H')" | tac)
 do
     current_commit="$((current_commit+1))"
     git checkout "$commit"
     printf "%-3s / %-3s\n" "$current_commit" "$total_commits"
-    update_map BlmapChill.map
+    if [ "$inital_commit" == "1" ]
+    then
+        inital_commit=0
+        while IFS= read -r -d '' map
+        do
+            update_map "$map"
+        done < <(find . -name "*.map")
+    else
+        for map in $(git diff --name-only HEAD HEAD~1)
+        do
+            update_map "$map"
+        done
+    fi
+    (
+        cd "$dir_path" || exit 1
+        git add .
+        git commit -m "update $commit" || true
+    ) || fail "commit failed"
 done
 
