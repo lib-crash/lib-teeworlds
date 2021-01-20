@@ -18,7 +18,12 @@ inital_commit=1
 function err() {
     printf "[-] %s\n" "$1"
 }
-
+function wrn() {
+    printf "[!] %s\n" "$1"
+}
+function log() {
+    printf "[*] %s\n" "$1"
+}
 function fail() {
     err "$1"
     git checkout master
@@ -29,17 +34,25 @@ function update_map() {
     local mapname_ext=$1
     local commit=$2
     local mapname
+    local map_dst
     mapname="${mapname_ext%.map*}"
-    test -d "$dir_path/$mapname" && rm -rf "${dir_path:?}/$mapname"
+    map_dst="$dir_path/$mapname"
+    test -d "$map_dst" && rm -rf "${dir_path:?}/$mapname"
     test -f "$mapname_ext" || { echo "map not found '$mapname_ext'"; return; }
     if [[ "$mapname" =~ /.+ ]]
     then
-        printf "directory %s \n" "${mapname%/*}"
         mkdir -p "$dir_path/${mapname%/*}" || exit 1
     fi
-    if ! edit_map "$mapname_ext" "$dir_path/$mapname" --mapdir
+    log "converting map '$mapname_ext' ..."
+    if ! edit_map "$mapname_ext" "$map_dst" --mapdir
     then
-        fail "edit_map failed on map '$mapname_ext' at commit '$commit'"
+        if edit_map "$mapname_ext" "$map_dst" --mapdir | \
+            grep -q 'parse error:.*cause: Sound'
+        then
+            wrn "WARNING: map '$mapname_ext' has sound layer errors"
+        else
+            fail "edit_map failed on map '$mapname_ext' at commit '$commit'"
+        fi
     fi
 }
 
