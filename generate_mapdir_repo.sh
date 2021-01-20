@@ -123,10 +123,15 @@ do
         printf '\n'
         printf '%s/commit/%s' "$git_remote" "$commit"
     )"
+    commit_author="$(git log --format='%an <%ae>' -n1 "$commit")"
+    commit_date="$(git log --format='%cd' -n1 "$commit")"
     (
         cd "$dir_path" || exit 1
         git add .
-        git commit -m "$commit_msg" || true
+        GIT_COMMITTER_DATE="$commit_date" git commit \
+            --author="$commit_author" \
+            --date "$commit_date" \
+            -m "$commit_msg" || true
     ) || fail "commit failed"
 done
 
