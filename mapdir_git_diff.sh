@@ -251,6 +251,15 @@ function parse_diff() {
                 echo "[-]        returns a valid mapdir diff"
                 exit 1
             fi
+            tile_x_change=' '
+            tile_x_del=""
+            tile_x_add=""
+            tile_y_change=' '
+            tile_y_del=""
+            tile_y_add=""
+            tile_id_change=' '
+            tile_id_del=""
+            tile_id_add=""
         elif [[ "$line" =~ ^[+-]?[[:space:]]*\"x\":\ ([0-9]*) ]]
         then
             tile_x="${BASH_REMATCH[1]}"
