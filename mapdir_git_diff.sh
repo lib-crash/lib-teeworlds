@@ -12,6 +12,13 @@ do
     if [ "$arg" == "--help" ] || [ "$arg" == "-h" ] || [ "$arg" == "help" ]
     then
         echo "$(basename "$0") [OPTIONS..] [max width] [max height]"
+        echo "description:"
+        echo "  This script parses and previews the git diff of a mapdir repo"
+        echo "  Use the $(tput bold)edit_map$(tput sgr0) binary from twmap (https://gitlab.com/Patiga/twmap)"
+        echo "  To generate a mapdir directory out of a teeworlds map"
+        echo "  Then track it in git and if you alter the mapdir"
+        echo "  you can preview the $(tput bold)git diff$(tput sgr0) using this tool"
+        echo ""
         echo "options:"
         echo "  --help"
         echo "    shows this help"
@@ -23,6 +30,17 @@ do
         echo "max height:"
         echo "  maximum rows used for map preview"
         echo "  defaults to terminal window height - 4"
+        echo ""
+        echo "example:"
+        echo "  edit_map dm1.map dm1 --mapdir"
+        echo "  cd dm1"
+        echo "  git init && git add . && git commit -m init"
+        echo "  cd .."
+        echo "  edit_map dm1_edit.map dm1_edit --mapdir"
+        echo "  rm -rf dm1/*"
+        echo "  cp -r dm1_edit/* dm1/"
+        echo "  cd dm1"
+        echo "  mapdir_git_diff.sh"
         exit 0
     elif [ "${arg::1}" == "-" ]
     then
