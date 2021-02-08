@@ -4,7 +4,7 @@ tw=""
 th=""
 scale=1
 
-declare -A aMapChange
+declare -A aMapAdd
 declare -A aMapDel
 
 for arg in "$@"
@@ -68,9 +68,9 @@ function draw_map() {
         printf '|'
         for((x=0;x<scaled_width;x++))
         do
-            if [ "$mode" == "change" ]
+            if [ "$mode" == "add" ]
             then
-                printf '%s' "${aMapChange[$x,$y]}"
+                printf '%s' "${aMapAdd[$x,$y]}"
             else
                 printf '%s' "${aMapDel[$x,$y]}"
             fi
@@ -81,7 +81,7 @@ function draw_map() {
     printf '%0.s-' "${w_range[@]}"
     printf '+\n'
 }
-function draw_tile_change() {
+function draw_tile_add() {
     local x="$1"
     local y="$2"
     local id="$3"
@@ -89,8 +89,8 @@ function draw_tile_change() {
     local sy="$y"
     sx="$(awk "BEGIN {printf \"%d\",${scale}*${x}}")"
     sy="$(awk "BEGIN {printf \"%d\",${scale}*${y}}")"
-    aMapChange[$sx,$sy]='*'
-    aTilesChanged+=("$id")
+    aMapAdd[$sx,$sy]='+'
+    aTilesAdd+=("$id")
 }
 function draw_tile_del() {
     local x="$1"
@@ -123,7 +123,7 @@ function update_scale() {
     fi
 }
 
-aTilesChanged=()
+aTilesAdd=()
 aTilesDel=()
 
 function finish_last_layer() {
@@ -131,7 +131,7 @@ function finish_last_layer() {
     local height="$2"
     local name="$3"
     local image="$4"
-    draw_map change
+    draw_map add
     draw_map del
     tput bold
     echo "$name"
@@ -144,10 +144,10 @@ function finish_last_layer() {
     echo "  scaled=${scaled_width}x${scaled_height}"
     echo "  scale=$scale"
     tput bold
-    echo "tiles changed"
+    echo "tiles added"
     tput sgr0
     echo "  amount : new index"
-    for tile in "${aTilesChanged[@]}"
+    for tile in "${aTilesAdd[@]}"
     do
         echo "$tile"
     done | sort | uniq -c | sort -nr | awk '{ printf "  %-6d : %-6d\n", $1, $2 }'
@@ -159,7 +159,7 @@ function finish_last_layer() {
     do
         echo "$tile"
     done | sort | uniq -c | sort -nr | awk '{ printf "  %-6d : %-6d\n", $1, $2 }'
-    aTilesChanged=()
+    aTilesAdd=()
     aTilesDel=()
 }
 
@@ -170,12 +170,18 @@ function parse_diff() {
     local layer_width=0
     local layer_height=0
     local tile
-    local tile_x=-1
-    local tile_y=-1
-    local tile_id=-1
-    local tile_x_change=0
-    local tile_y_change=0
-    local tile_id_change=0
+    local tile_x
+    local tile_x_del
+    local tile_x_add
+    local tile_y
+    local tile_y_del
+    local tile_y_add
+    local tile_id
+    local tile_id_del
+    local tile_id_add
+    local tile_x_change=' '
+    local tile_y_change=' '
+    local tile_id_change=' '
     local x
     local y
     while IFS= read -r line
@@ -196,7 +202,7 @@ function parse_diff() {
             do
                 for((x=0;x<scaled_width;x++))
                 do
-                    aMapChange[$x,$y]=' '
+                    aMapAdd[$x,$y]=' '
                     aMapDel[$x,$y]=' '
                 done
             done
@@ -204,36 +210,81 @@ function parse_diff() {
         then
             tile_x="${BASH_REMATCH[1]}"
             tile_x_change="${line::1}"
+            if [ "$tile_x_change" == "-" ]
+            then
+                tile_x_del="$tile_x"
+            elif [ "$tile_x_change" == "+" ]
+            then
+                tile_x_add="$tile_x"
+            fi
         elif [[ "$line" =~ ^[+-]?[[:space:]]*\"y\":\ ([0-9]*) ]]
         then
             tile_y="${BASH_REMATCH[1]}"
             tile_y_change="${line::1}"
+            if [ "$tile_y_change" == "-" ]
+            then
+                tile_y_del="$tile_y"
+            elif [ "$tile_y_change" == "+" ]
+            then
+                tile_y_add="$tile_y"
+            fi
         elif [[ "$line" =~ ^[+-]?[[:space:]]*\"id\":\ ([0-9]*) ]]
         then
             tile_id="${BASH_REMATCH[1]}"
             tile_id_change="${line::1}"
+            if [ "$tile_id_change" == "-" ]
+            then
+                tile_id_del="$tile_id"
+            elif [ "$tile_id_change" == "+" ]
+            then
+                tile_id_add="$tile_id"
+            fi
         elif [ "${line:1:5}" == "    }" ] || [ "${line::2}" == "@@" ]
         then
-            if [ "$tile_x_change" == "0" ] || [ "$tile_y_change" == "0" ] || [ "$tile_id_change" == "0" ]
+            if [ "$tile_x_change" == " " ] && [ "$tile_y_change" == " " ] && [ "$tile_id_change" == " " ]
             then
                 continue
             fi
-            if [ "$tile_id_change" == "+" ]
-            then
-                draw_tile_change "$tile_x" "$tile_y" "$tile_id"
-            elif [ "$tile_id_change" == "-" ]
+            # tile removed (only -)
+            if [ "$tile_id_change" == "-" ] && [ "$tile_x_change" == "-" ] && [ "$tile_y_change" == "-" ]
             then
                 draw_tile_del "$tile_x" "$tile_y" "$tile_id"
+                # printf -- "full delete x=%s y=%s id=%s\n" "$tile_x" "$tile_y" "$tile_id"
+            # tile added (only +)
+            elif [ "$tile_id_del" == "" ] && [ "$tile_x_del" == "" ] && [ "$tile_y_change" == "+" ] && \
+                [ "$tile_id_add" != "" ] && [ "$tile_x_add" != "" ] && [ "$tile_y_add" != "" ]
+            then
+                draw_tile_add "$tile_x" "$tile_y" "$tile_id"
+                # printf "full add x=%s y=%s id=%s\n" "$tile_x" "$tile_y" "$tile_id"
+            else
+                # partial add
+                if [ "$tile_id_add" != "" ] || [ "$tile_x_add" != "" ] || [ "$tile_y_add" != "" ]
+                then
+                    draw_tile_add "${tile_x_add:-$tile_x}" "${tile_y_add:-$tile_y}" "${tile_id_add:-$tile_id}"
+                    # printf "partial add x=%s y=%s id=%s\n" "${tile_x_add:-$tile_x}" "${tile_y_add:-$tile_y}" "${tile_id_add:-$tile_id}"
+                fi
+                # partial del
+                if [ "$tile_id_del" != "" ] || [ "$tile_x_del" != "" ] || [ "$tile_y_del" != "" ]
+                then
+                    draw_tile_del "${tile_x_del:-$tile_x}" "${tile_y_del:-$tile_y}" "${tile_id_del:-$tile_id}"
+                    # printf "partial del x=%s y=%s id=%s\n" "${tile_x_del:-$tile_x}" "${tile_y_del:-$tile_y}" "${tile_id_del:-$tile_id}"
+                fi
             fi
-            tile_x_change=0
-            tile_y_change=0
-            tile_id_change=0
+            tile_x_change=' '
+            tile_x_del=""
+            tile_x_add=""
+            tile_y_change=' '
+            tile_y_del=""
+            tile_y_add=""
+            tile_id_change=' '
+            tile_id_del=""
+            tile_id_add=""
         fi
     done < <(git --no-pager diff)
     # add the last tile if the diff ends before a closing }
     if [ "$tile_x_change" == "+" ] || [ "$tile_y_change" == "+" ] || [ "$tile_id_change" == "+" ]
     then
-        draw_tile_change "$tile_x" "$tile_y" "$tile_id"
+        draw_tile_add "$tile_x" "$tile_y" "$tile_id"
     fi
     finish_last_layer "$layer_width" "$layer_height" "$layer_name" "$layer_image"
 }
