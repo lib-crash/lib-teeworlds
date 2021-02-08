@@ -144,13 +144,27 @@ function update_scale() {
 aTilesAdd=()
 aTilesDel=()
 
+function is_tile_layer() {
+    if [ "$layer_type" == "tiles" ] || [ "$layer_type" == "game" ] || \
+        [ "$layer_type" == "speedup" ] || [ "$layer_type" == "switch" ] || \
+        [ "$layer_type" == "tele" ] || [ "$layer_type" == "tune" ] || \
+        [ "$layer_type" == "front" ]
+    then
+        return 0
+    fi
+    return 1
+}
+
 function finish_last_layer() {
     local width="$1"
     local height="$2"
     local name="$3"
     local image="$4"
-    draw_map add
-    draw_map del
+    if is_tile_layer
+    then
+        draw_map add
+        draw_map del
+    fi
     tput bold
     echo "$name"
     tput sgr0
@@ -179,6 +193,7 @@ function finish_last_layer() {
     done | sort | uniq -c | sort -nr | awk '{ printf "  %-6d : %-6d\n", $1, $2 }'
     aTilesAdd=()
     aTilesDel=()
+    echo ""
 }
 
 function parse_diff() {
@@ -215,15 +230,27 @@ function parse_diff() {
             layer_width="$(jq '.width' "$layer_name")"
             layer_height="$(jq '.height' "$layer_name")"
             layer_image="$(jq '.image' "$layer_name")"
-            update_scale "$layer_width" "$layer_height"
-            for((y=0;y<scaled_height;y++))
-            do
-                for((x=0;x<scaled_width;x++))
+            layer_type="$(jq '.type' "$layer_name" | xargs)"
+            if is_tile_layer
+            then
+                update_scale "$layer_width" "$layer_height"
+                for((y=0;y<scaled_height;y++))
                 do
-                    aMapAdd[$x,$y]=' '
-                    aMapDel[$x,$y]=' '
+                    for((x=0;x<scaled_width;x++))
+                    do
+                        aMapAdd[$x,$y]=' '
+                        aMapDel[$x,$y]=' '
+                    done
                 done
-            done
+            elif [ "$layer_type" == "quads" ]
+            then
+                echo "[!] quads layer are not yet supported"
+            else
+                echo "[-] Error: invalid layer type '$layer_type'"
+                echo "[-]        make sure $(tput bold)git diff$(tput sgr0)"
+                echo "[-]        returns a valid mapdir diff"
+                exit 1
+            fi
         elif [[ "$line" =~ ^[+-]?[[:space:]]*\"x\":\ ([0-9]*) ]]
         then
             tile_x="${BASH_REMATCH[1]}"
