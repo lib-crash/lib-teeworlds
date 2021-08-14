@@ -1,0 +1,31 @@
+#!/bin/bash
+
+if [ "$#" -eq "0" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
+then
+    echo "usage: $(basename "$0") <logfile.txt>"
+    echo "description:"
+    echo "  filter teeworlds logs"
+    echo "  removes sensitive data such as IP addresses"
+    echo ""
+    tput bold
+    echo "! !!! WARNING !!!"
+    echo "!  this script is in early development and may leak data"
+    echo "!  use on own risk"
+    echo "!  login credentials/usernames/chat messages are known to be leaked"
+    tput sgr0
+    exit
+fi
+
+logfile="$1"
+if [ ! -f "$logfile" ]
+then
+    echo "error logfile '$logfile' not found!"
+    exit 1
+fi
+
+# censor ips
+sed '/^\[.*\]\[server\].*<{.*}>/ { s/<{[0-9].*:/<{XXX.XXX.XXX.XXX:/g }' "$logfile" | \
+    sed "/^\\[.*\\]\\[server\\]: '.*' -> '.*'$/ { s/'.*' -> '.*'/'nameless' -> 'nameless'/g }" | \
+    cat
+    # sed "/^\\[.*\\]\\[chat\\]: .*:.*:.*$/ { s/:.*:(.)*/XXX/g }"
+

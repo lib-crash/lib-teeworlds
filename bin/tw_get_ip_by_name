@@ -1,0 +1,29 @@
+#!/bin/bash
+
+username="$1"
+
+if [ "$#" -eq "0" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
+then
+	echo "usage: $(basename "$0") <username>"
+	echo "description:"
+	echo "  counts all ips this username connected with"
+	echo "  using teeworlds logs in the current directory as input"
+	echo "limitations:"
+	echo "  only supports the ddnet <{ip}> format for now"
+	exit 0
+fi
+
+if [ ! -x "$(command -v rg)" ]
+then
+	echo "please install ripgrep"
+	exit 1
+fi
+
+rg -FB 1 "'$username' entered and" | \
+	grep -o addr.* | \
+	cut -d'{' -f 2 | \
+	cut -d':' -f1 | \
+	sort | \
+	uniq -c | \
+	sort -nr
+

@@ -1,0 +1,25 @@
+#!/bin/bash
+
+addr="$1"
+
+if [ "$#" -eq "0" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]
+then
+	echo "usage: $(basename "$0") <ip address>"
+	echo "description:"
+	echo "  counts all names this ip connected with"
+	echo "  using teeworlds logs in the current directory as input"
+	exit 0
+fi
+
+if [ ! -x "$(command -v rg)" ]
+then
+	echo "please install ripgrep"
+	exit 1
+fi
+
+rg -A 1 "entered the game.*$addr" | \
+	gawk 'match($0, /*** '"'"'(.*)'"'"'/, a) {print a[1]}' | \
+	sort | \
+	uniq -c | \
+	sort -nr
+
