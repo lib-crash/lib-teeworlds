@@ -28,10 +28,13 @@ fi
 function parse_log_line() {
 	local line="$1"
 	local id
+	local i
 	if [[ "$line" =~ \[server\]:\ player\ is\ ready.\ ClientID=([0-9]+)\ addr=\<\{$arg_ip:[0-9]+\}\> ]]
 	then
+		echo "$line"
 		ids+=("${BASH_REMATCH[1]}")
 	else
+		i=0
 		for id in "${ids[@]}"
 		do
 			if [ "$id" == "-1" ]
@@ -40,6 +43,7 @@ function parse_log_line() {
 			fi
 			if [[ "$line" =~ \[server\]:\ client\ dropped.\ cid=$id\ addr ]]
 			then
+				echo "$line"
 				ids["$i"]='-1'
 			elif [[ "$line" =~ \[chat\]:\ $id: ]]
 			then
