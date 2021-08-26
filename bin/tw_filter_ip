@@ -1,0 +1,59 @@
+#!/bin/bash
+
+current_id=-1
+arg_ip=''
+arg_logfile=''
+
+function show_help() {
+	echo "usage: $(basename "$0") <ip> <logfile>"
+	echo "description:"
+	echo "  print all chat messages found in the given logfile"
+	echo "  that were sent from the given ip address"
+}
+
+if [ "$#" == "0" ] || [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$1" == "help" ]
+then
+	show_help
+	exit 0
+fi
+arg_ip="$1"
+arg_logfile="$2"
+
+if [ ! -f "$arg_logfile" ]
+then
+	echo "Error: file not found $arg_logfile"
+	exit 1
+fi
+
+function parse_log_line() {
+	local line="$1"
+	if [ "$current_id" == "-1" ]
+	then
+		if [[ "$line" =~ \[server\]:\ player\ is\ ready.\ ClientID=([0-9]+)\ addr=\<\{$arg_ip:[0-9]+\}\> ]]
+		then
+			current_id="${BASH_REMATCH[1]}"
+		fi
+	else
+		if [[ "$line" =~ \[server\]:\ client\ dropped.\ cid=$current_id\ addr ]]
+		then
+			current_id='-1'
+		elif [[ "$line" =~ \[chat\]:\ $current_id: ]]
+		then
+			echo "$line"
+		elif [[ "$line" =~ \[chat-command\]:\ $current_id\ used ]]
+		then
+			echo "$line"
+		fi
+	fi
+}
+
+function parse_logfile() {
+	local line
+	while read -r line
+	do
+		parse_log_line "$line"
+	done < "$arg_logfile"
+}
+
+parse_logfile
+
