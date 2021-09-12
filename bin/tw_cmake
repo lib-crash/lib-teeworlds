@@ -44,6 +44,7 @@ function generate_data() {
         -name "*.wv" -o \
         -name "*.txt" -o \
         -name "*.ttf" -o \
+        -name "*.ttc" -o \
         -name "*.otf" -o \
         -name "*.frag" -o \
         -name "*.vert" -o \
