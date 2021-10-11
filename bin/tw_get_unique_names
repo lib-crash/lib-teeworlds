@@ -1,26 +1,54 @@
 #!/bin/bash
 
-# Parse teeworlds log files in the current directory
-# and return all unique player names prefixed with the
-# amount of occurences
+function show_help() {
+	echo "usage: tw_get_unique_names [DIRECTORY..]"
+	echo "description:"
+	echo "  Parse teeworlds log files in the current directory"
+	echo "  and return all unique player names prefixed with the"
+	echo "  amount of occurences"
+}
+
+aDirs=()
+aDirs+=('.')
+
+for arg in "$@"
+do
+	if [ "$arg" == "-h" ] || [ "$arg" == "--help" ]
+	then
+		show_help
+		exit 0
+	else
+		aDirs+=("$arg")
+	fi
+done
 
 function get_names() {
 	local file="$1"
 	gawk 'match($0,/\*\*\* '\''(.*)'\'' entered and joined the game/, ary) {print ary[1]}' "$file"
 }
 
-{
-	for log in ./*.{txt,log}
-	do
-		[[ -f "$log" ]] || break
+function print_dir() {
+	local dir="$1"
+	(
+		cd "$dir" || { echo "Error: invalid dir '$dir'"; exit 1; }
+		for log in ./*.{txt,log}
+		do
+			[[ -f "$log" ]] || break
 
-		get_names "$log"
-	done
-	for log in ./*/*.{txt,log}
-	do
-		[[ -f "$log" ]] || break
+			get_names "$log"
+		done
+		for log in ./*/*.{txt,log}
+		do
+			[[ -f "$log" ]] || break
 
-		get_names "$log"
-	done
-} | sort | uniq -c
+			get_names "$log"
+		done
+	)
+}
+
+
+for dir in "${aDirs[@]}"
+do
+	print_dir "$dir"
+done | sort | uniq -c
 
