@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Parse teeworlds log files in the current directory
+# and return all unique player names prefixed with the
+# amount of occurences
+
+function get_names() {
+	local file="$1"
+	gawk 'match($0,/\*\*\* '\''(.*)'\'' entered and joined the game/, ary) {print ary[1]}' "$file"
+}
+
+{
+	for log in ./*.{txt,log}
+	do
+		[[ -f "$log" ]] || break
+
+		get_names "$log"
+	done
+	for log in ./*/*.{txt,log}
+	do
+		[[ -f "$log" ]] || break
+
+		get_names "$log"
+	done
+} | sort | uniq -c
+
