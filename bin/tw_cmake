@@ -69,7 +69,7 @@ function generate_data() {
         echo "$empty" | sed -n -e '1,/XXX END/!p'
     } > "$cmakelist"
 }
-function get_files() {
+function get_files_recurse() {
     local dir="$1"
     local oneline="$2"
     local indent="${3:-  }"
@@ -93,12 +93,38 @@ function get_files() {
         fi
     done | LC_ALL=C sort | eval "$pipe"
 }
+function get_files() {
+	local dir="$1"
+	local oneline="$2"
+	local indent="${3:-  }"
+	local pipe=cat
+	dir="$twpath/$dir"
+	if [ "$oneline" == "1" ]
+	then
+		pipe="tr '\n' ' '"
+	fi
+	find "$dir" \
+		-maxdepth 1 \
+		-type f \( \
+		-name "*.cpp" -o \
+		-name "*.c" -o \
+		-name "*.h" \) -print0 | while IFS= read -r -d '' f
+	do
+		f="${f// /\\ }"
+		if [ "$oneline" == "1" ]
+		then
+			printf "\n%s" "${f/$dir\//}"
+		else
+			printf "%s%s\n" "$indent" "${f/$dir\//}"
+		fi
+	done | LC_ALL=C sort | eval "$pipe"
+}
 function generate_src_oneline() {
     local set_str="$1"
     local dir="$2"
     local files
     local set_str_start
-    files="$(get_files "$dir" 1)"
+    files="$(get_files_recurse "$dir" 1)"
     files="${files::-1}"
     set_str_start="$(echo "$set_src" | cut -d' ' -f1-3)"
     while IFS= read -r line
@@ -113,55 +139,67 @@ function generate_src_oneline() {
     mv "$cmakelist.tmp" "$cmakelist"
 }
 function generate_src() {
-    local set_str="$1"
-    local dir="$2"
-    local line
-    local is_match=0
-    local indent
-    echo "[*] generate source $set_src ..."
-    while IFS= read -r line
-    do
-        if [ "$is_match" == "0" ]
-        then
-            if [ "$line" == "$set_str" ]
-            then
-                is_match=1
-            fi
-            echo "$line"
-            indent=''
-        else
-            if [ "$indent" == "" ]
-            then
-                indent="$(echo "$line" | grep -o '^[[:space:]]*')"
-            fi
-            if [[ "$line" =~ ^[[:space:]]*\) ]]
-            then
-                is_match=0
-                get_files "$dir" "0" "$indent"
-                echo "$line"
-            fi
-        fi
-    done < "$cmakelist" > "$cmakelist.tmp"
-    mv "$cmakelist.tmp" "$cmakelist"
+	local set_str="$1"
+	local dir="$2"
+	local recurse="${3:-1}"
+	local line
+	local is_match=0
+	local indent
+	echo "[*] generate source $set_src ..."
+	while IFS= read -r line
+	do
+		if [ "$is_match" == "0" ]
+		then
+			if [ "$line" == "$set_str" ]
+			then
+				is_match=1
+			fi
+			echo "$line"
+			indent=''
+		else
+			if [ "$indent" == "" ]
+			then
+				indent="$(echo "$line" | grep -o '^[[:space:]]*')"
+			fi
+			if [[ "$line" =~ ^[[:space:]]*\) ]]
+			then
+				is_match=0
+				if [ "$recurse" == "1" ]
+				then
+					get_files_recurse "$dir" "0" "$indent"
+				else
+					get_files "$dir" "0" "$indent"
+				fi
+				echo "$line"
+			fi
+		fi
+	done < "$cmakelist" > "$cmakelist.tmp"
+	mv "$cmakelist.tmp" "$cmakelist"
 }
 function generate_sources() {
-    local set_src
-    while IFS= read -r set_src
-    do
-        if [[ "$set_src" == *GAME_SHARED* ]] || \
-		[[ "$set_src" == *ENGINE_INTERFACE* ]] || \
-		[[ "$set_src" == *MASTERSRV_SRC* ]] || \
-		[[ "$set_src" == *TWPING_SRC* ]]
-        then
-            continue
-        fi
-        if [[ "$set_src" =~ \) ]]
-        then
-            generate_src_oneline "$set_src" "$(echo "$set_src" | awk '{ print $3 }')"
-        else
-            generate_src "$set_src" "$(echo "$set_src" | awk '{ print $3 }')"
-        fi
-    done < <(grep '^[[:space:]]*set_src(' "$cmakelist")
+	local set_src
+	local recurse
+	while IFS= read -r set_src
+	do
+		if \
+			[[ "$set_src" == *MASTERSRV_SRC* ]] || \
+			[[ "$set_src" == *TWPING_SRC* ]]
+		then
+					continue
+		fi
+		if [[ "$set_src" =~ \) ]]
+		then
+			generate_src_oneline "$set_src" "$(echo "$set_src" | awk '{ print $3 }')"
+		else
+			if echo "$set_src" | grep -q GLOB_RECURSE
+			then
+				recurse=1
+			else
+				recurse=0
+			fi
+			generate_src "$set_src" "$(echo "$set_src" | awk '{ print $3 }')" "$recurse"
+		fi
+	done < <(grep '^[[:space:]]*set_src(' "$cmakelist")
 }
 generate_sources
 generate_data
