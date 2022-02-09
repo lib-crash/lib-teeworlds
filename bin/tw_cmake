@@ -11,12 +11,31 @@
 
 if [ "$#" -ne "1" ]
 then
-    echo "Usage: $(basename "$0") <teeworlds source root>"
+    echo "Usage: $(basename "$0") [COMMAND] <teeworlds source root>"
+    echo "Commands:"
+    echo "  clean - delete all cmake build cache"
     exit 1
 fi
 twpath="$1"
 cmakelist="$twpath/"CMakeLists.txt
 datasrc_path="$twpath/datasrc"
+
+if [ ! -d "$twpath" ]
+then
+	if [ "$twpath" == "clean" ]
+	then
+		if [ -f Makefile ] && [ -d ../.git ] && [ "$(basename "$(pwd)")" == "build" ]
+		then
+			echo "[*] Cleaning current build directory ..."
+			rm -rf Makefile CMakeFiles src
+			exit 0
+		fi
+		echo "[*] Already clean or not a build directory."
+		exit 1
+	fi
+	echo "[-] Error: teeworlds path '$twpath' is invalid"
+	exit 1
+fi
 
 if [ ! -f "$cmakelist" ]
 then
