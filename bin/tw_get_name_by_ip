@@ -17,7 +17,7 @@ then
 	exit 1
 fi
 
-rg -A 1 "entered the game.*$addr" | \
+rg -A 2 "entered the game.*$addr" | \
 	gawk 'match($0, /*** '"'"'(.*)'"'"'/, a) {print a[1]}' | \
 	sort | \
 	uniq -c | \
