@@ -19,7 +19,7 @@ then
 	exit 1
 fi
 
-rg -FB 1 "'$username' entered and" | \
+rg -FB 2 "'$username' entered and" | \
 	grep -o addr.* | \
 	cut -d'{' -f 2 | \
 	cut -d':' -f1 | \
