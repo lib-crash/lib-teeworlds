@@ -57,18 +57,19 @@ function generate_data() {
     local f
     local files
     files=$(find "$datasrc_path" -type f \( \
-        -name "*.json" -o \
-        -name "*.rules" -o \
-        -name "*.png" -o \
-        -name "*.wv" -o \
-        -name "*.txt" -o \
-        -name "*.ttf" -o \
-        -name "*.ttc" -o \
-        -name "*.otf" -o \
-        -name "*.frag" -o \
-        -name "*.vert" -o \
-        -name "*.pem" -o \
-        -name "*.map" \) -print0 | while IFS= read -r -d '' f
+        -name "*.cfg" 	-o \
+        -name "*.frag" 	-o \
+        -name "*.json" 	-o \
+        -name "*.map" 	-o \
+        -name "*.otf" 	-o \
+        -name "*.pem" 	-o \
+        -name "*.png" 	-o \
+        -name "*.rules"	-o \
+        -name "*.txt"	-o \
+        -name "*.ttf" 	-o \
+        -name "*.ttc" 	-o \
+        -name "*.vert" 	-o \
+        -name "*.wv" \) -print0 | while IFS= read -r -d '' f
     do
         f="${f// /\\ }"
         echo "  ${f/$datasrc_path\//}"
