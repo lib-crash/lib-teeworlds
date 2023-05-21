@@ -56,6 +56,11 @@ fi
 function generate_data() {
     local f
     local files
+    if ! grep -q EXPECTED_DATA "$cmakelist"
+    then
+	    echo "[!] Warning: not EXPECTED_DATA entry found"
+	    return
+    fi
     files=$(find "$datasrc_path" -type f \( \
         -name "*.cfg" 	-o \
         -name "*.frag" 	-o \
