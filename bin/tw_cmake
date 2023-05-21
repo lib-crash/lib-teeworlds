@@ -224,7 +224,7 @@ function generate_sources() {
 			fi
 			generate_src "$set_src" "$(echo "$set_src" | awk '{ print $3 }')" "$recurse"
 		fi
-	done < <(grep '^[[:space:]]*set_src(' "$cmakelist")
+	done < <(grep -E '^[[:space:]]*set_(src|glob)\(' "$cmakelist")
 }
 generate_sources
 generate_data
