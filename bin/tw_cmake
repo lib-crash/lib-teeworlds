@@ -206,11 +206,29 @@ function generate_sources() {
 	local recurse
 	while IFS= read -r set_src
 	do
+		# trim spaces
+		set_src="$(echo "$set_src" | xargs)"
 		if \
 			[[ "$set_src" == *MASTERSRV_SRC* ]] || \
 			[[ "$set_src" == *TWPING_SRC* ]]
 		then
 					continue
+		fi
+		# only care about old 0.6.5 set_glob
+		# ignore the new set_glob
+		# old:
+		# set_glob(DEP_MD5_SRC GLOB src/engine/external/md5 md5.c md5.h)
+		# new:
+		# set_glob(DATA GLOB_RECURSE "json;map;png;rules;ttc;ttf;txt;wv" datasrc ${EXPECTED_DATA})
+		if [[ "$set_src" == set_glob* ]]
+		then
+			if [[ ! "$set_src" =~ set_glob\([A-Z0-9_]+\ GLOB(_RECURSE)?\ src ]]
+			then
+				# did not detect old set_glob that has the same format
+				# as set_src
+				# -> assuming new glob and ignore it
+				continue
+			fi
 		fi
 		if [[ "$set_src" =~ \) ]]
 		then
