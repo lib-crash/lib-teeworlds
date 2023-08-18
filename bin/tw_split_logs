@@ -123,10 +123,10 @@ function split_log() {
 	cd "$file_ts" || exit 1
 
 	backup="/tmp/tw_split_$USER/$logfile.bak"
-	cp "$logfile" "$backup"
+	cp "$logfile" "$backup" || exit 1
 	basename="${logfile%$ts_and_ext*}"
 
-	split -d -l "$MAX_LINES" "$logfile"
+	split -d -l "$MAX_LINES" "$logfile" || exit 1
 	rm "$logfile"
 
 	for log in ./x*
