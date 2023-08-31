@@ -162,15 +162,41 @@ function split_log() {
 	echo "original file was moved to '$backup'"
 }
 
-if [ "$IS_AUTO" == "1" ]
-then
-    for f in ./*.log ./*.txt
-    do
-        [[ -e "$f" ]] || { echo "no logfiles found."; exit 1; }
+function check_disk_space() {
+	local free_space
+	if ! free_space="$(df -h | grep ' /$' | awk '{ print $4 }')"
+	then
+		echo "Error: failed to get free disk space!"
+		exit 1
+	fi
+	if [ "$free_space" == "" ]
+	then
+		echo "Error: failed to get free disk space!"
+		exit 1
+	fi
+	if [[ "$free_space" =~ [0-9]+[GT] ]]
+	then
+		echo "[*] disk usage '$free_space' .. OK"
+		return
+	fi
+	echo "Error: disk space '$free_space' is too low to copy logs"
+	exit 1
+}
 
-        split_log "$f"
-    done
-else
-    split_log "$LOGFILE"
-fi
+function main() {
+	check_disk_space
+	if [ "$IS_AUTO" == "1" ]
+	then
+	    for f in ./*.log ./*.txt
+	    do
+		[[ -e "$f" ]] || { echo "no logfiles found."; exit 1; }
+
+		split_log "$f"
+	    done
+	else
+	    split_log "$LOGFILE"
+	fi
+}
+
+main
 
