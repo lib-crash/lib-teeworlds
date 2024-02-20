@@ -105,6 +105,13 @@ function split_log() {
 		)"
 		if [ "$ts_and_ext" == "" ]
 		then
+			ts_and_ext="$(
+				echo "$logfile" | \
+				grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}(.txt|.log)+$'
+			)"
+		fi
+		if [ "$ts_and_ext" == "" ]
+		then
 			echo "Error: could not parse timestamp of file '$logfile'"
 			echo "       the logfile has to have a timestamp at the end of the filename"
 			echo ""
