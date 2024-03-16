@@ -220,7 +220,16 @@ split_log() {
 			err "Error: could not parse teeworlds time stamp"
 			exit 1
 		else
-			mv "$log" "${basename}${logfile_ts}.${file_ext}"
+			local dst_file="${basename}${logfile_ts}.${file_ext}"
+			if [ -f "$dst_file" ]
+			then
+				err "Error: failed to move $log to $dst_file"
+				err "       file already exists"
+				err "       make sure your file size is big enough"
+				err "       so that the timestamps are unique"
+				exit 1
+			fi
+			mv "$log" "$dst_file"
 		fi
 	done
 
