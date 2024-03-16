@@ -71,7 +71,68 @@ do
     fi
 done
 
-function split_log() {
+err() {
+	printf '[-] %s\n' "$1" 1>&2
+}
+wrn() {
+	printf '[-] %s\n' "$1" 1>&2
+}
+log() {
+	printf '[-] %s\n' "$1" 1>&2
+}
+
+# compare two strings and ensure they match or crash
+assert_eq() {
+	local expected="$1"
+	local got="$2"
+	[ "$expected" = "$got" ] && return
+
+	printf 'assertion error!\n' 1>&2
+	printf ' expected: %s\n' "$expected" 1>&2
+	printf '      got: %s\n' "$got" 1>&2
+}
+
+# given a single log line as argument
+# it extracts the timestamp
+# it supports old and new ddnet format
+#
+#  assert_eq 2022-03-07_14-11-34 "$(extract_timestamp_as_slug "[2022-03-07 14:11:34][chat-command]: 30 used /pause")"
+#  assert_eq 2023-06-12_15-15-59 "$(extract_timestamp_as_slug "2023-06-12 15:15:59 I engine: running on unix-linux-amd64")"
+extract_timestamp_as_slug() {
+	local log_line="$1"
+	local ts_raw
+	local ts_slugged
+	# old ddnet
+	if [[ "$log_line" =~ ^\[(.*)\]\[ ]]
+	then
+		ts_raw="${BASH_REMATCH[1]}"
+	fi
+	if [[ "$log_line" =~ ^([0-9-]+\ [0-9:]+)\  ]]
+	then
+		ts_raw="${BASH_REMATCH[1]}"
+	fi
+	if [ "$ts_raw" = "" ]
+	then
+		err "Error: failed to match timestamp"
+		exit 1
+	fi
+	if ! ts_slugged="$(echo "$ts_raw" | sed 's/:/-/g' | sed 's/ /_/g')"
+	then
+		err "Error: slug failed"
+		exit 1
+	fi
+	if [ "$ts_slugged" = "" ]
+	then
+		err "Error: slugged timestamp is empty"
+		exit 1
+	fi
+	echo "$ts_slugged"
+}
+
+assert_eq 2022-03-07_14-11-34 "$(extract_timestamp_as_slug "[2022-03-07 14:11:34][chat-command]: 30 used /pause")"
+assert_eq 2023-06-12_15-15-59 "$(extract_timestamp_as_slug "2023-06-12 15:15:59 I engine: running on unix-linux-amd64")"
+
+split_log() {
 	# usage: split_log <filename>
 	local ts_and_ext
 	local backup
@@ -153,14 +214,13 @@ function split_log() {
 	do
 		echo "logfile: $log"
 		first_line="$(head -n1 "$log")"
-		if [[ "$first_line" =~ ^\[(.*)\]\[ ]]
+		local logfile_ts
+		if ! logfile_ts="$(extract_timestamp_as_slug "$first_line")"
 		then
-			ts_raw="${BASH_REMATCH[1]}"
-			ts="$(echo "$ts_raw" | sed 's/:/-/g' | sed 's/ /_/g')"
-			mv "$log" "${basename}${ts}.${file_ext}"
-		else
-			echo "Could not parse teeworlds time stamp"
+			err "Error: could not parse teeworlds time stamp"
 			exit 1
+		else
+			mv "$log" "${basename}${logfile_ts}.${file_ext}"
 		fi
 	done
 
@@ -170,7 +230,7 @@ function split_log() {
 	echo "original file was moved to '$backup'"
 }
 
-function check_disk_space() {
+check_disk_space() {
 	local free_space
 	if ! free_space="$(df -h | grep ' /$' | awk '{ print $4 }')"
 	then
@@ -191,7 +251,7 @@ function check_disk_space() {
 	exit 1
 }
 
-function main() {
+main() {
 	check_disk_space
 	if [ "$IS_AUTO" == "1" ]
 	then
