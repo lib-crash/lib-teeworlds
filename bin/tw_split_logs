@@ -82,12 +82,19 @@ log() {
 }
 
 # compare two strings and ensure they match or crash
+# matching node order of actual, expected, [message]  https://nodejs.org/api/assert.html#assertequalactual-expected-message
+# matching rust order of actual, expexted https://users.rust-lang.org/t/assert-eq-expected-and-actual/20304/3
+#
+# @param actual
+# @param expected
+# @param [message]
 assert_eq() {
-	local expected="$1"
-	local got="$2"
-	[ "$expected" = "$got" ] && return
+	local actual="$1"
+	local expected="$2"
+	local message="${3:-}"
+	[ "$actual" = "$expected" ] && return
 
-	printf 'assertion error!\n' 1>&2
+	printf 'assertion error! %s\n' "$message" 1>&2
 	printf ' expected: %s\n' "$expected" 1>&2
 	printf '      got: %s\n' "$got" 1>&2
 }
@@ -96,8 +103,8 @@ assert_eq() {
 # it extracts the timestamp
 # it supports old and new ddnet format
 #
-#  assert_eq 2022-03-07_14-11-34 "$(extract_timestamp_as_slug "[2022-03-07 14:11:34][chat-command]: 30 used /pause")"
-#  assert_eq 2023-06-12_15-15-59 "$(extract_timestamp_as_slug "2023-06-12 15:15:59 I engine: running on unix-linux-amd64")"
+#  assert_eq "$(extract_timestamp_as_slug "[2022-03-07 14:11:34][chat-command]: 30 used /pause")" 2022-03-07_14-11-34 
+#  assert_eq "$(extract_timestamp_as_slug "2023-06-12 15:15:59 I engine: running on unix-linux-amd64")" 2023-06-12_15-15-59
 extract_timestamp_as_slug() {
 	local log_line="$1"
 	local ts_raw
@@ -129,8 +136,8 @@ extract_timestamp_as_slug() {
 	echo "$ts_slugged"
 }
 
-assert_eq 2022-03-07_14-11-34 "$(extract_timestamp_as_slug "[2022-03-07 14:11:34][chat-command]: 30 used /pause")"
-assert_eq 2023-06-12_15-15-59 "$(extract_timestamp_as_slug "2023-06-12 15:15:59 I engine: running on unix-linux-amd64")"
+assert_eq "$(extract_timestamp_as_slug "[2022-03-07 14:11:34][chat-command]: 30 used /pause")" 2022-03-07_14-11-34 
+assert_eq "$(extract_timestamp_as_slug "2023-06-12 15:15:59 I engine: running on unix-linux-amd64")" 2023-06-12_15-15-59
 
 split_log() {
 	# usage: split_log <filename>
