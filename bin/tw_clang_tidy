@@ -5,6 +5,7 @@ set -eu
 ARG_JOBS=1
 ARG_BUILDDIR=''
 ARG_SKIP=0
+ARG_FIX=0
 
 log() {
 	printf '%s\n' "$1"
@@ -20,6 +21,7 @@ usage() {
 		runs clang-tidy on all individual source files in the current directory
 	options:
 	  -j[jobs]        number of threads (default: 1)
+	  --fix           pass --fix to clang-tidy
 	EOF
 }
 
@@ -48,6 +50,9 @@ parse_args() {
 			then
 				ARG_SKIP="$1"
 				shift
+			elif [ "$arg" = --fix ]
+			then
+				ARG_FIX=1
 			else
 				err "error: invalid argument '$arg'"
 				exit 1
@@ -115,13 +120,17 @@ total="$(list_code_files | wc -l)"
 check_file() {
 	local source_file="$1"
 	local build_dir="$2"
-	local conf_file=
-	# conf_file=--config-file=scripts/clang-tidy-camel-case.yml
+	local args=
+	if [ "$ARG_FIX" = 1 ]
+	then
+		args+=' --fix'
+	fi
+	# args+=' --config-file=scripts/clang-tidy-camel-case.yml'
 	# shellcheck disable=2086
-	if ! clang-tidy $conf_file "$source_file" -p "$build_dir" 2>/dev/null
+	if ! clang-tidy $args"$source_file" -p "$build_dir" 2>/dev/null
 	then
 		# show stderr on error
-		clang-tidy $conf_file "$source_file" -p "$build_dir"
+		clang-tidy $args "$source_file" -p "$build_dir"
 	fi
 }
 
