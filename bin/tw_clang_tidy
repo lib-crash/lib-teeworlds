@@ -85,15 +85,6 @@ do
 	cp "$build_dir/src/game/generated/$generated_file" src/game/generated/
 done
 
-# .clang-tidy hack
-[ ! -f .clang-tidy ] && [ -f HACK ] && mv HACK .clang-tidy
-mv .clang-tidy HACK
-restore() {
-	log "cleaning up hack ..."
-	mv HACK .clang-tidy
-}
-trap restore EXIT
-
 list_code_files() {
 	find ./src/ \
 		-type f \
