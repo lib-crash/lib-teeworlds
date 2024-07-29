@@ -31,46 +31,6 @@ function show_help() {
     echo "    split all logfiles in current dir that are too big"
 }
 
-if [ "$1" == "--help" ] || [ "$1" == "-h" ] || [ "$#" == "0" ]
-then
-    show_help
-    exit 0
-fi
-
-IS_AUTO=0
-
-for arg in "$@"
-do
-    # OPTIONS
-    if [ "${arg:0:2}" == "--" ]
-    then
-        if [ "$arg" == "--auto" ]
-        then
-            echo "[!] WARNING DO NOT USE --auto WHEN THE SERVER IS RUNNING"
-            echo "[!] IT COULD FORMAT A LOGFILE THAT IS CURRENTLY USED FOR WRITING"
-            echo "do you really want to continue? [y/N]"
-            read -r -n 1 yn
-            echo ""
-            if [[ ! "$yn" =~ [yY] ]]
-            then
-                exit
-            fi
-            IS_AUTO=1
-        else
-            echo "unkown option '$arg' try --help"
-            exit 1
-        fi
-    fi
-
-    # FILE OR LINENUM
-    if [[ "$arg" =~ ^[0-9]*$ ]]
-    then
-        MAX_LINES="$arg"
-    else
-        LOGFILE="$arg"
-    fi
-done
-
 err() {
 	printf '[-] %s\n' "$1" 1>&2
 }
@@ -83,7 +43,7 @@ log() {
 
 # compare two strings and ensure they match or crash
 # matching node order of actual, expected, [message]  https://nodejs.org/api/assert.html#assertequalactual-expected-message
-# matching rust order of actual, expexted https://users.rust-lang.org/t/assert-eq-expected-and-actual/20304/3
+# matching rust order of actual, expected https://users.rust-lang.org/t/assert-eq-expected-and-actual/20304/3
 #
 # @param actual
 # @param expected
@@ -121,23 +81,27 @@ extract_timestamp_as_slug() {
 	if [ "$ts_raw" = "" ]
 	then
 		err "Error: failed to match timestamp"
+		err "       log line: $log_line"
 		exit 1
 	fi
 	if ! ts_slugged="$(echo "$ts_raw" | sed 's/:/-/g' | sed 's/ /_/g')"
 	then
 		err "Error: slug failed"
+		err "       log line: $log_line"
 		exit 1
 	fi
 	if [ "$ts_slugged" = "" ]
 	then
 		err "Error: slugged timestamp is empty"
+		err "       log line: $log_line"
 		exit 1
 	fi
 	echo "$ts_slugged"
 }
 
-assert_eq "$(extract_timestamp_as_slug "[2022-03-07 14:11:34][chat-command]: 30 used /pause")" 2022-03-07_14-11-34 
+assert_eq "$(extract_timestamp_as_slug "[2022-03-07 14:11:34][chat-command]: 30 used /pause")" 2022-03-07_14-11-34
 assert_eq "$(extract_timestamp_as_slug "2023-06-12 15:15:59 I engine: running on unix-linux-amd64")" 2023-06-12_15-15-59
+assert_eq "$(extract_timestamp_as_slug "[2022-04-29 23:06:42][game]: kill killer='2:_Cxxxxxe_1' victim='1:iii' weapon=3 special=0")" 2022-04-29_23-06-42
 
 split_log() {
 	# usage: split_log <filename>
@@ -266,6 +230,47 @@ check_disk_space() {
 	echo "Error: disk space '$free_space' is too low to copy logs"
 	exit 1
 }
+
+
+if [ "$1" == "--help" ] || [ "$1" == "-h" ] || [ "$#" == "0" ]
+then
+    show_help
+    exit 0
+fi
+
+IS_AUTO=0
+
+for arg in "$@"
+do
+    # OPTIONS
+    if [ "${arg:0:2}" == "--" ]
+    then
+        if [ "$arg" == "--auto" ]
+        then
+            echo "[!] WARNING DO NOT USE --auto WHEN THE SERVER IS RUNNING"
+            echo "[!] IT COULD FORMAT A LOGFILE THAT IS CURRENTLY USED FOR WRITING"
+            echo "do you really want to continue? [y/N]"
+            read -r -n 1 yn
+            echo ""
+            if [[ ! "$yn" =~ [yY] ]]
+            then
+                exit
+            fi
+            IS_AUTO=1
+        else
+            echo "unknown option '$arg' try --help"
+            exit 1
+        fi
+    fi
+
+    # FILE OR LINENUM
+    if [[ "$arg" =~ ^[0-9]*$ ]]
+    then
+        MAX_LINES="$arg"
+    else
+        LOGFILE="$arg"
+    fi
+done
 
 main() {
 	check_disk_space
