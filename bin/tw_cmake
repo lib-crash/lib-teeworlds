@@ -18,7 +18,6 @@ then
 fi
 twpath="$1"
 cmakelist="$twpath/"CMakeLists.txt
-datasrc_path="$twpath/datasrc"
 
 if [ ! -d "$twpath" ]
 then
@@ -42,16 +41,6 @@ then
 	echo "[-] Error: '$cmakelist' file not found."
 	exit 1
 fi
-if [ ! -f "$datasrc_path"/game.png ] && [ -f "$twpath"/data/game.png ]
-then
-	datasrc_path="$twpath/data"
-	echo "[*] use data/ dir instead of datasrc/"
-fi
-if [ ! -d "$datasrc_path" ]
-then
-	echo "[-] Error: '$datasrc_path' path not found."
-	exit 1
-fi
 
 function generate_data() {
 	local f
@@ -61,6 +50,58 @@ function generate_data() {
 		echo "[!] Warning: not EXPECTED_DATA entry found"
 		return
 	fi
+
+	local expected_data_line
+	if ! expected_data_line="$(grep '^set_glob.*EXPECTED_DATA' "$cmakelist")"
+	then
+		echo "[!] Warning: did not match EXPECTED_DATA line"
+		return
+	fi
+
+	if [ "$(echo "$expected_data_line" | wc -l)" -gt "1" ]
+	then
+		echo "[!] Warning: found multiple EXPECTED_DATA lines. Skipping data folder!"
+		echo "             lines found:"
+		echo ""
+		echo "$expected_data_line"
+		echo ""
+		return
+	fi
+
+	# expected_data_line is supposed to look like one of these:
+	#
+	# set_glob(DATA GLOB_RECURSE "png;map" data ${EXPECTED_DATA})
+	# set_glob(DATA GLOB_RECURSE "json;map;png;rules;ttc;ttf;txt;wv" datasrc ${EXPECTED_DATA})
+	# set_glob(DATA GLOB_RECURSE "cfg;frag;json;map;otf;png;rules;ttc;ttf;txt;vert;wv" data ${EXPECTED_DATA})
+	#
+	# which means we could also verify we search for the correct file extensions
+
+	local datasrc_path="$twpath/datasrc"
+	if printf "%s" "$expected_data_line" | grep -q " data "
+	then
+		# assume datasrc by default
+		# if we match " data " it is probably data
+		datasrc_path="$twpath/data"
+
+		if printf "%s" "$expected_data_line" | grep -q " datasrc "
+		then
+			echo "[!] Warning: can not determine data folder location"
+			echo "             found both 'data' and 'datasrc' in this line"
+			echo ""
+			echo "$expected_data_line"
+			echo ""
+			return
+		fi
+
+		echo "[*] use data/ dir instead of datasrc/"
+	fi
+
+	if [ ! -d "$datasrc_path" ]
+	then
+		echo "[-] Error: '$datasrc_path' path not found."
+		exit 1
+	fi
+
 	files=$(find "$datasrc_path" -type f \( \
 		-name "*.cfg" 	-o \
 		-name "*.frag" 	-o \
