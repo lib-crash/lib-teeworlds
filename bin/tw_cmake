@@ -9,6 +9,8 @@
 # and then execute:
 # tw_cmake .
 
+set -u
+
 if [ "$#" -ne "1" ]
 then
 	echo "Usage: $(basename "$0") [COMMAND] <teeworlds source root>"
@@ -16,12 +18,13 @@ then
 	echo "  clean - delete all cmake build cache"
 	exit 1
 fi
-twpath="$1"
-cmakelist="$twpath/"CMakeLists.txt
+TWPATH="$1"
+BASE_CMAKELISTS="$TWPATH/"CMakeLists.txt
+INSTA_CMAKELISTS="$TWPATH/src/insta/CMakeLists.txt"
 
-if [ ! -d "$twpath" ]
+if [ ! -d "$TWPATH" ]
 then
-	if [ "$twpath" == "clean" ]
+	if [ "$TWPATH" == "clean" ]
 	then
 		if [ -f Makefile ] && [ -d ../.git ] && [ "$(basename "$(pwd)")" == "build" ]
 		then
@@ -32,27 +35,28 @@ then
 		echo "[*] Already clean or not a build directory."
 		exit 1
 	fi
-	echo "[-] Error: teeworlds path '$twpath' is invalid"
+	echo "[-] Error: teeworlds path '$TWPATH' is invalid"
 	exit 1
 fi
 
-if [ ! -f "$cmakelist" ]
+if [ ! -f "$BASE_CMAKELISTS" ]
 then
-	echo "[-] Error: '$cmakelist' file not found."
+	echo "[-] Error: '$BASE_CMAKELISTS' file not found."
 	exit 1
 fi
 
 function generate_data() {
+	local cmake_file="$1"
 	local f
 	local files
-	if ! grep -q EXPECTED_DATA "$cmakelist"
+	if ! grep -q EXPECTED_DATA "$cmake_file"
 	then
 		echo "[!] Warning: not EXPECTED_DATA entry found"
 		return
 	fi
 
 	local expected_data_line
-	if ! expected_data_line="$(grep '^set_glob.*EXPECTED_DATA' "$cmakelist")"
+	if ! expected_data_line="$(grep '^set_glob.*EXPECTED_DATA' "$cmake_file")"
 	then
 		echo "[!] Warning: did not match EXPECTED_DATA line"
 		return
@@ -76,12 +80,12 @@ function generate_data() {
 	#
 	# which means we could also verify we search for the correct file extensions
 
-	local datasrc_path="$twpath/datasrc"
+	local datasrc_path="$TWPATH/datasrc"
 	if printf "%s" "$expected_data_line" | grep -q " data "
 	then
 		# assume datasrc by default
 		# if we match " data " it is probably data
-		datasrc_path="$twpath/data"
+		datasrc_path="$TWPATH/data"
 
 		if printf "%s" "$expected_data_line" | grep -q " datasrc "
 		then
@@ -122,7 +126,7 @@ function generate_data() {
 	done | LC_ALL=C sort)
 
 	pad="########################################################################"
-	empty=$(sed '/set(EXPECTED_DATA/,/)/d' "$cmakelist" | \
+	empty=$(sed '/set(EXPECTED_DATA/,/)/d' "$cmake_file" | \
 		tr '\n' '\f' | \
 		sed -e "s/# DATA\\f$pad/# DATA\\f$pad\\fXXX START\\fXXX END/" | \
 		tr '\f' '\n')
@@ -133,7 +137,7 @@ function generate_data() {
 		echo "$files"
 		printf ")"
 		echo "$empty" | sed -n -e '1,/XXX END/!p'
-	} > "$cmakelist"
+	} > "$cmake_file"
 }
 
 function get_files_recurse() {
@@ -141,7 +145,7 @@ function get_files_recurse() {
 	local oneline="$2"
 	local indent="${3:-  }"
 	local pipe=cat
-	dir="$twpath/$dir"
+	dir="$TWPATH/$dir"
 	if [ "$oneline" == "1" ]
 	then
 		pipe="tr '\n' ' '"
@@ -166,7 +170,7 @@ function get_files() {
 	local oneline="$2"
 	local indent="${3:-  }"
 	local pipe=cat
-	dir="$twpath/$dir"
+	dir="$TWPATH/$dir"
 	if [ "$oneline" == "1" ]
 	then
 		pipe="tr '\n' ' '"
@@ -189,8 +193,9 @@ function get_files() {
 }
 
 function generate_src_oneline() {
-	local set_str="$1"
-	local dir="$2"
+	local cmake_file="$1"
+	local set_str="$2"
+	local dir="$3"
 	local files
 	local set_str_start
 	files="$(get_files_recurse "$dir" 1)"
@@ -204,14 +209,15 @@ function generate_src_oneline() {
 		else
 			echo "$line"
 		fi
-	done < "$cmakelist" > "$cmakelist.tmp"
-	mv "$cmakelist.tmp" "$cmakelist"
+	done < "$cmake_file" > "${cmake_file}.tmp"
+	mv "${cmake_file}.tmp" "$cmake_file"
 }
 
 function generate_src() {
-	local set_str="$1"
-	local dir="$2"
-	local recurse="${3:-1}"
+	local cmake_file="$1"
+	local set_str="$2"
+	local dir="$3"
+	local recurse="${4:-1}"
 	local line
 	local is_match=0
 	local indent
@@ -243,11 +249,12 @@ function generate_src() {
 				echo "$line"
 			fi
 		fi
-	done < "$cmakelist" > "$cmakelist.tmp"
-	mv "$cmakelist.tmp" "$cmakelist"
+	done < "$cmake_file" > "${cmake_file}.tmp"
+	mv "${cmake_file}.tmp" "$cmake_file"
 }
 
 function generate_sources() {
+	local cmake_file="$1"
 	local set_src
 	local recurse
 	while IFS= read -r set_src
@@ -276,7 +283,7 @@ function generate_sources() {
 		fi
 		if [[ "$set_src" =~ \) ]]
 		then
-			generate_src_oneline "$set_src" "$(echo "$set_src" | awk '{ print $3 }')"
+			generate_src_oneline "$cmake_file" "$set_src" "$(echo "$set_src" | awk '{ print $3 }')"
 		else
 			if echo "$set_src" | grep -q GLOB_RECURSE
 			then
@@ -284,13 +291,21 @@ function generate_sources() {
 			else
 				recurse=0
 			fi
-			generate_src "$set_src" "$(echo "$set_src" | awk '{ print $3 }')" "$recurse"
+			generate_src "$cmake_file" "$set_src" "$(echo "$set_src" | awk '{ print $3 }')" "$recurse"
 		fi
-	done < <(grep -E '^[[:space:]]*set_(src|glob)\(' "$cmakelist")
+	done < <(grep -E '^[[:space:]]*set_(src|glob)\(' "$cmake_file")
 }
 
-generate_sources
-generate_data
+generate_data "$BASE_CMAKELISTS"
+generate_sources "$BASE_CMAKELISTS"
+
+if [ -f "$INSTA_CMAKELISTS" ]
+then
+	# ddnet-insta has a extra CMakeLists.txt file for its files
+	# https://github.com/ddnet-insta/ddnet-insta/blob/60764a877c09d57fbc6c8c2019f30f9b94c80121/src/insta/CMakeLists.txt
+	echo "[*] detected ddnet-insta code base .."
+	generate_sources "$INSTA_CMAKELISTS"
+fi
 
 echo "[*] done"
 
