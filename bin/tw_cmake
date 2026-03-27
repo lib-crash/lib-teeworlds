@@ -20,7 +20,6 @@ then
 fi
 TWPATH="$1"
 BASE_CMAKELISTS="$TWPATH/"CMakeLists.txt
-INSTA_CMAKELISTS="$TWPATH/src/insta/CMakeLists.txt"
 
 if [ ! -d "$TWPATH" ]
 then
@@ -299,13 +298,16 @@ function generate_sources() {
 generate_data "$BASE_CMAKELISTS"
 generate_sources "$BASE_CMAKELISTS"
 
-if [ -f "$INSTA_CMAKELISTS" ]
-then
-	# ddnet-insta has a extra CMakeLists.txt file for its files
-	# https://github.com/ddnet-insta/ddnet-insta/blob/60764a877c09d57fbc6c8c2019f30f9b94c80121/src/insta/CMakeLists.txt
-	echo "[*] detected ddnet-insta code base .."
-	generate_sources "$INSTA_CMAKELISTS"
-fi
+for insta_fork_list in "$TWPATH"/src/*/CMakeLists.txt
+do
+	if [ -f "$insta_fork_list" ]
+	then
+		# ddnet-insta has a extra CMakeLists.txt file for its files
+		# https://github.com/ddnet-insta/ddnet-insta/blob/60764a877c09d57fbc6c8c2019f30f9b94c80121/src/insta/CMakeLists.txt
+		echo "[*] detected ddnet-insta code base .."
+		generate_sources "$insta_fork_list"
+	fi
+done
 
 echo "[*] done"
 
