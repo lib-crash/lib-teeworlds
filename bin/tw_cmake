@@ -105,6 +105,14 @@ function generate_data() {
 		exit 1
 	fi
 
+	local tidy_comments=0
+	if grep -qF "# tidy-alphabetical-start" "$cmake_file"
+	then
+		tidy_comments=1
+	fi
+
+	local indent="  "
+
 	files=$(find "$datasrc_path" -type f \( \
 		-name "*.cfg" 	-o \
 		-name "*.frag" 	-o \
@@ -121,7 +129,7 @@ function generate_data() {
 		-name "*.wv" \) -print0 | while IFS= read -r -d '' f
 	do
 		f="${f// /\\ }"
-		echo "  ${f/$datasrc_path\//}"
+		echo "$indent${f/$datasrc_path\//}"
 	done | LC_ALL=C sort)
 
 	pad="########################################################################"
@@ -133,7 +141,9 @@ function generate_data() {
 		echo "$empty" | sed -n -e '/XXX START/,$!p'
 		echo ""
 		echo "set(EXPECTED_DATA"
+		[[ "$tidy_comments" = 1 ]] && printf -- '%s# tidy-alphabetical-start\n' "$indent"
 		echo "$files"
+		[[ "$tidy_comments" = 1 ]] && printf -- '%s# tidy-alphabetical-end\n' "$indent"
 		printf ")"
 		echo "$empty" | sed -n -e '1,/XXX END/!p'
 	} > "$cmake_file"
@@ -217,6 +227,7 @@ function generate_src() {
 	local set_str="$2"
 	local dir="$3"
 	local recurse="${4:-1}"
+	local tidy_comments="${5:-0}"
 	local line
 	local is_match=0
 	local indent
@@ -239,13 +250,15 @@ function generate_src() {
 			if [[ "$line" =~ ^[[:space:]]*\) ]]
 			then
 				is_match=0
+				[[ "$tidy_comments" = 1 ]] && printf -- '%s# tidy-alphabetical-start\n' "$indent"
 				if [ "$recurse" == "1" ]
 				then
 					get_files_recurse "$dir" "0" "$indent"
 				else
 					get_files "$dir" "0" "$indent"
 				fi
-				echo "$line"
+				[[ "$tidy_comments" = 1 ]] && printf -- '%s# tidy-alphabetical-end\n' "$indent"
+				printf -- '%s\n' "$line"
 			fi
 		fi
 	done < "$cmake_file" > "${cmake_file}.tmp"
@@ -256,6 +269,13 @@ function generate_sources() {
 	local cmake_file="$1"
 	local set_src
 	local recurse
+	local tidy_comments=0
+	if grep -qF "# tidy-alphabetical-start" "$cmake_file"
+	then
+		echo "[*] detected tidy alphabetical comments"
+		tidy_comments=1
+	fi
+
 	while IFS= read -r set_src
 	do
 		if \
@@ -290,7 +310,7 @@ function generate_sources() {
 			else
 				recurse=0
 			fi
-			generate_src "$cmake_file" "$set_src" "$(echo "$set_src" | awk '{ print $3 }')" "$recurse"
+			generate_src "$cmake_file" "$set_src" "$(echo "$set_src" | awk '{ print $3 }')" "$recurse" "$tidy_comments"
 		fi
 	done < <(grep -E '^[[:space:]]*set_(src|glob)\(' "$cmake_file")
 }
