@@ -344,6 +344,19 @@ patch_cmake_ddnet_base_lib() {
 				printf "%s%s\n" "$indent" "$f"
 			done | LC_ALL=C sort
 	}
+	get_lib_source() {
+		local indent=$'\t'
+		find -L ./src -type f \( \
+		-name "*.rs" -o \
+		-name "*.cpp" -o \
+		-name "*.c" \) -print0 | while IFS= read -r -d '' f
+		do
+				f="${f// /\\ }"
+				# cut the leading ./ from find
+				f="${f:2}"
+				printf "%s%s\n" "$indent" "$f"
+		done | LC_ALL=C sort
+	}
 
 	while IFS= read -r line
 	do
@@ -351,7 +364,10 @@ patch_cmake_ddnet_base_lib() {
 		then
 			if [ "$line" == "set(LIB_PUBLIC_HEADERS_BASE" ]
 			then
-				is_match=1
+				is_match=headers
+			elif [ "$line" == "set(BASE_SRC" ]
+			then
+				is_match=source
 			fi
 			echo "$line"
 			indent=''
@@ -362,8 +378,13 @@ patch_cmake_ddnet_base_lib() {
 			fi
 			if [[ "$line" =~ ^[[:space:]]*\) ]]
 			then
+				if [ "$is_match" = "headers" ]
+				then
+					get_lib_headers
+				else
+					get_lib_source
+				fi
 				is_match=0
-				get_lib_headers
 				printf -- '%s\n' "$line"
 			fi
 		fi
