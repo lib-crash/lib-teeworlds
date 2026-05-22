@@ -153,6 +153,7 @@ function get_files_recurse() {
 	local dir="$1"
 	local oneline="$2"
 	local indent="${3:-  }"
+	local strip_dir="${4:-1}"
 	local pipe=cat
 	dir="$TWPATH/$dir"
 	if [ "$oneline" == "1" ]
@@ -165,11 +166,18 @@ function get_files_recurse() {
 		-name "*.h" \) -print0 | while IFS= read -r -d '' f
 	do
 		f="${f// /\\ }"
+		if [ "$strip_dir" == "1" ]
+		then
+			f="${f/$dir\//}"
+		else
+			# cut the leading ./ from find
+			f="${f:2}"
+		fi
 		if [ "$oneline" == "1" ]
 		then
-			printf "\n%s" "${f/$dir\//}"
+			printf "\n%s" "$f"
 		else
-			printf "%s%s\n" "$indent" "${f/$dir\//}"
+			printf "%s%s\n" "$indent" "$f"
 		fi
 	done | LC_ALL=C sort | eval "$pipe"
 }
@@ -315,19 +323,77 @@ function generate_sources() {
 	done < <(grep -E '^[[:space:]]*set_(src|glob)\(' "$cmake_file")
 }
 
-generate_data "$BASE_CMAKELISTS"
-generate_sources "$BASE_CMAKELISTS"
+patch_cmake_ddnet_base_lib() {
+	local cmake_file="$BASE_CMAKELISTS"
+	local set_src
+	local recurse=1
+	local tidy_comments=0
+	local is_match=0
+	local dir=src
 
-for insta_fork_list in "$TWPATH"/src/*/CMakeLists.txt
-do
-	if [ -f "$insta_fork_list" ]
-	then
-		# ddnet-insta has a extra CMakeLists.txt file for its files
-		# https://github.com/ddnet-insta/ddnet-insta/blob/60764a877c09d57fbc6c8c2019f30f9b94c80121/src/insta/CMakeLists.txt
-		echo "[*] detected ddnet-insta code base .."
-		generate_sources "$insta_fork_list"
-	fi
-done
+	get_lib_headers() {
+		local indent=$'\t'
+		find -L ./src -type f \( \
+		-name "*.h" \) -print0 | while IFS= read -r -d '' f
+		do
+				[[ "$f" = *"/external/"* ]] && continue
+
+				f="${f// /\\ }"
+				# cut the leading ./ from find
+				f="${f:2}"
+				printf "%s%s\n" "$indent" "$f"
+			done | LC_ALL=C sort
+	}
+
+	while IFS= read -r line
+	do
+		if [ "$is_match" == "0" ]
+		then
+			if [ "$line" == "set(LIB_PUBLIC_HEADERS_BASE" ]
+			then
+				is_match=1
+			fi
+			echo "$line"
+			indent=''
+		else
+			if [ "$indent" == "" ]
+			then
+				indent="$(echo "$line" | grep -o '^[[:space:]]*')"
+			fi
+			if [[ "$line" =~ ^[[:space:]]*\) ]]
+			then
+				is_match=0
+				get_lib_headers
+				printf -- '%s\n' "$line"
+			fi
+		fi
+	done < "$cmake_file" > "${cmake_file}.tmp"
+	mv "${cmake_file}.tmp" "$cmake_file"
+}
+
+patch_cmake_ddnet_or_teeworlds() {
+	generate_data "$BASE_CMAKELISTS"
+	generate_sources "$BASE_CMAKELISTS"
+
+	for insta_fork_list in "$TWPATH"/src/*/CMakeLists.txt
+	do
+		if [ -f "$insta_fork_list" ]
+		then
+			# ddnet-insta has a extra CMakeLists.txt file for its files
+			# https://github.com/ddnet-insta/ddnet-insta/blob/60764a877c09d57fbc6c8c2019f30f9b94c80121/src/insta/CMakeLists.txt
+			echo "[*] detected ddnet-insta code base .."
+			generate_sources "$insta_fork_list"
+		fi
+	done
+}
+
+if [ -d "$TWPATH"/src/ddnet_base ]
+then
+	echo "[*] detected ddnet_base library"
+	patch_cmake_ddnet_base_lib
+else
+	patch_cmake_ddnet_or_teeworlds
+fi
 
 echo "[*] done"
 
