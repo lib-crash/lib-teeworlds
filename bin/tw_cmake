@@ -273,6 +273,66 @@ function generate_src() {
 	mv "${cmake_file}.tmp" "$cmake_file"
 }
 
+list_python_files_in_dir() {
+	local dir="$1"
+	local indent="$2"
+	local tidy_comments=1
+	[[ "$tidy_comments" = 1 ]] && printf -- '%s# tidy-alphabetical-start\n' "$indent"
+	find -L ./"$dir" -type f \( \
+	-name "*.py" \) -print0 | while IFS= read -r -d '' f
+	do
+			f="${f// /\\ }"
+			# cut the leading ./ from find
+			f="${f:2}"
+			printf "%s%s\n" "$indent" "$f"
+		done | LC_ALL=C sort
+	[[ "$tidy_comments" = 1 ]] && printf -- '%s# tidy-alphabetical-end\n' "$indent"
+}
+
+function generate_python_depends() {
+	local cmake_file="$1"
+	local python_cmd="$2"
+	local files="$3"
+	local tidy_comments=0
+	local is_in_cmd=0
+	local is_in_depends=0
+
+	while IFS= read -r line
+	do
+		if [ "$is_in_cmd" == "0" ]
+		then
+			echo "$line"
+			if [[ "$line" == *COMMAND*"$python_cmd"* ]]
+			then
+				is_in_cmd=1
+			fi
+		elif [[ "$line" == *"DEPENDS"* ]]
+		then
+			echo "$line"
+			echo "$files"
+			is_in_depends=1
+		elif [[ "$line" == *"WORKING_DIRECTORY"* ]]
+		then
+			is_in_cmd=0
+			is_in_depends=0
+			echo "$line"
+		elif [ "$is_in_cmd" == "1" ]
+		then
+			if [ "$is_in_depends" = "1" ]
+			then
+				# skip all files in there already
+				test
+			else
+				echo "$line"
+			fi
+		else
+			echo "LOGIC ERROR"
+			exit 1
+		fi
+	done < "$cmake_file" > "${cmake_file}.tmp"
+	mv "${cmake_file}.tmp" "$cmake_file"
+}
+
 function generate_sources() {
 	local cmake_file="$1"
 	local set_src
@@ -404,6 +464,7 @@ patch_cmake_ddnet_or_teeworlds() {
 			# https://github.com/ddnet-insta/ddnet-insta/blob/60764a877c09d57fbc6c8c2019f30f9b94c80121/src/insta/CMakeLists.txt
 			echo "[*] detected ddnet-insta code base .."
 			generate_sources "$insta_fork_list"
+			generate_python_depends "$insta_fork_list" codegen.py "$(list_python_files_in_dir ddnet-insta/datasrc '      ')"
 		fi
 	done
 }
