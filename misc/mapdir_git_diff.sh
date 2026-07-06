@@ -160,37 +160,40 @@ function finish_last_layer() {
 	local height="$2"
 	local name="$3"
 	local image="$4"
-	if is_tile_layer
+	if [ "$layer_type" != "map_details" ]
 	then
-		draw_map add
-		draw_map del
+		if is_tile_layer
+		then
+			draw_map add
+			draw_map del
+		fi
+		tput bold
+		echo "$name"
+		tput sgr0
+		echo "  image=$image"
+		tput bold
+		echo "size"
+		tput sgr0
+		echo "  orginal=${width}x${height}"
+		echo "  scaled=${scaled_width}x${scaled_height}"
+		echo "  scale=$scale"
+		tput bold
+		echo "tiles added"
+		tput sgr0
+		echo "  amount : new index"
+		for tile in "${aTilesAdd[@]}"
+		do
+			echo "$tile"
+		done | sort | uniq -c | sort -nr | awk '{ printf "  %-6d : %-6d\n", $1, $2 }'
+		tput bold
+		echo "tiles removed"
+		tput sgr0
+		echo "  amount : index"
+		for tile in "${aTilesDel[@]}"
+		do
+			echo "$tile"
+		done | sort | uniq -c | sort -nr | awk '{ printf "  %-6d : %-6d\n", $1, $2 }'
 	fi
-	tput bold
-	echo "$name"
-	tput sgr0
-	echo "  image=$image"
-	tput bold
-	echo "size"
-	tput sgr0
-	echo "  orginal=${width}x${height}"
-	echo "  scaled=${scaled_width}x${scaled_height}"
-	echo "  scale=$scale"
-	tput bold
-	echo "tiles added"
-	tput sgr0
-	echo "  amount : new index"
-	for tile in "${aTilesAdd[@]}"
-	do
-		echo "$tile"
-	done | sort | uniq -c | sort -nr | awk '{ printf "  %-6d : %-6d\n", $1, $2 }'
-	tput bold
-	echo "tiles removed"
-	tput sgr0
-	echo "  amount : index"
-	for tile in "${aTilesDel[@]}"
-	do
-		echo "$tile"
-	done | sort | uniq -c | sort -nr | awk '{ printf "  %-6d : %-6d\n", $1, $2 }'
 	aTilesAdd=()
 	aTilesDel=()
 	echo ""
@@ -232,6 +235,13 @@ function parse_diff() {
 			layer_height="$(jq '.height' "$layer_name")"
 			layer_image="$(jq '.image' "$layer_name")"
 			layer_type="$(jq '.type' "$layer_name" | xargs)"
+
+			if [ "$layer_name" = "info.json" ]
+			then
+				layer_type="map_details"
+			fi
+
+
 			if is_tile_layer
 			then
 				update_scale "$layer_width" "$layer_height"
@@ -246,6 +256,10 @@ function parse_diff() {
 			elif [ "$layer_type" == "quads" ]
 			then
 				echo "[!] quads layer are not yet supported"
+			elif [ "$layer_type" == "map_details" ]
+			then
+				echo "[*] map details changed:"
+				git diff info.json
 			else
 				echo "[-] Error: invalid layer type '$layer_type'"
 				echo "[-]        make sure $(tput bold)git diff$(tput sgr0)"
