@@ -197,6 +197,7 @@ function finish_last_layer() {
 }
 
 function parse_diff() {
+    local diff_file="$1"
     local line
     local first_layer=1
     local layer_name=''
@@ -334,7 +335,7 @@ function parse_diff() {
             tile_id_del=""
             tile_id_add=""
         fi
-    done < <(git --no-pager diff)
+    done < "$diff_file"
     # add the last tile if the diff ends before a closing }
     if [ "$tile_x_change" == "+" ] || [ "$tile_y_change" == "+" ] || [ "$tile_id_change" == "+" ]
     then
@@ -343,5 +344,5 @@ function parse_diff() {
     finish_last_layer "$layer_width" "$layer_height" "$layer_name" "$layer_image"
 }
 
-parse_diff
+parse_diff <(git --no-pager diff)
 
