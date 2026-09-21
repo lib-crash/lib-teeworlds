@@ -217,12 +217,14 @@ function generate_src_oneline() {
 	local set_str_start
 	files="$(get_files_recurse "$dir" 1)"
 	files="${files::-1}"
-	set_str_start="$(echo "$set_str" | cut -d' ' -f1-3)"
+	local indent
+	indent="$(echo "$set_str" | grep -o '^[[:space:]]*')"
+	set_str_start="$(echo "$set_str" | sed "s/^$indent//" | cut -d' ' -f1-3)"
 	while IFS= read -r line
 	do
 		if [ "$line" == "$set_str" ]
 		then
-			printf "%s%s)\n" "$set_str_start" "$files"
+			printf "%s%s%s)\n" "$indent" "$set_str_start" "$files"
 		else
 			echo "$line"
 		fi
