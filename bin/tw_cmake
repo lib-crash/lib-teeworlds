@@ -396,7 +396,7 @@ patch_cmake_ddnet_base_lib() {
 	local has_include_dir=0
 
 	get_lib_headers() {
-		local indent=$'\t'
+		local indent='  '
 		local header_dir=./src
 		[[ "$has_include_dir" == 1 ]] && header_dir=./include
 		find -L "$header_dir" -type f \( \
@@ -411,7 +411,7 @@ patch_cmake_ddnet_base_lib() {
 			done | LC_ALL=C sort
 	}
 	get_lib_source() {
-		local indent=$'\t'
+		local indent='  '
 		find -L ./src -type f \( \
 		-name "*.rs" -o \
 		-name "*.cpp" -o \
