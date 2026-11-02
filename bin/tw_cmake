@@ -476,7 +476,9 @@ patch_cmake_ddnet_or_teeworlds() {
 	done
 }
 
-if [ -d "$TWPATH"/src/ddnet_base ] || compgen -G "$TWPATH"/include/teel_* > /dev/null
+if [ -d "$TWPATH"/src/ddnet_base ] ||
+	[ -d "$TWPATH"/include/eggling ] ||
+	compgen -G "$TWPATH"/include/teel_* > /dev/null
 then
 	echo "[*] detected ddnet_base or teel library"
 	patch_cmake_ddnet_base_lib
